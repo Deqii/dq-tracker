@@ -22,10 +22,18 @@ export default function TodayPage() {
     let cancelled = false;
 
     const load = async () => {
-      const res = await fetch("/api/tasks");
-      const data = await res.json();
+      const [tasksRes, completionsRes] = await Promise.all([
+        fetch("/api/tasks"),
+        fetch("/api/completions/today"),
+      ]);
+      const tasksData = await tasksRes.json();
+      const completedTaskIds = await completionsRes.json();
+
       if (!cancelled) {
-        setTasks(Array.isArray(data) ? data : []);
+        setTasks(Array.isArray(tasksData) ? tasksData : []);
+        setCompletedIds(
+          new Set(Array.isArray(completedTaskIds) ? completedTaskIds : [])
+        );
         setLoading(false);
       }
     };
@@ -41,6 +49,15 @@ export default function TodayPage() {
     supabase.auth.getUser().then(({ data }) => {
       setUserEmail(data.user?.email ?? null);
     });
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/user-stats")
+      .then((res) => res.json())
+      .then((data) => {
+        setTotalPoints(data.total_points);
+        setLevel(data.current_level);
+      });
   }, []);
 
   const handleComplete = async (taskId: string) => {

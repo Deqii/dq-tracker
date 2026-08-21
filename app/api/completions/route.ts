@@ -31,6 +31,25 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  // Block completing the same task more than once today
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const { data: existing } = await supabase
+    .from("completions")
+    .select("id")
+    .eq("task_id", task_id)
+    .eq("user_id", user.id)
+    .gte("completed_at", startOfDay.toISOString())
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "Task already completed today" },
+      { status: 409 }
+    );
+  }
+
   // Log the completion
   const { data: completion, error: completionError } = await supabase
     .from("completions")
